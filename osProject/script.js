@@ -71,7 +71,6 @@ function deepCopyProcesses(ps) {
 }
 
 document.getElementById('run').addEventListener('click', () => {
-    // Reset all progress bars to 0%
     processes.forEach(p => {
         const bar = document.getElementById(`progress-${p.pid}`);
         if (bar) bar.style.width = '0%';
@@ -102,8 +101,7 @@ document.getElementById('run').addEventListener('click', () => {
         case 'mlfq': result = mlfqScheduling(freshProcesses, [q0, q1, q2, q3], [a0, a1, a2, a3]); break;
     }
 
-    //renderTimeline(result);
-    renderMetrics(calculateMetrics(result, freshProcesses));
+    
     animateTimelineAndProgress(result, freshProcesses);
 });
 
@@ -203,11 +201,9 @@ function mlfqScheduling(ps, quantums, allotments) {
             if (p.remaining > 0) {
                 if (p.used >= allotment) {
                     if (level < quantums.length - 1) {
-                        // Demote to next queue
                         p.level++;
                         p.used = 0;
                     } else {
-                        // Last queue: reset used so process can continue
                         p.used = 0;
                     }
                 }
@@ -219,55 +215,6 @@ function mlfqScheduling(ps, quantums, allotments) {
 
     return timeline;
 }
-
-//function renderTimeline(schedule) {
-//    const colors = ['#2196F3', '#4CAF50', '#FF9800', '#9C27B0', '#f44336'];
-//    const container = document.getElementById('timeline');
-//    container.innerHTML = '';
-
-//    let i = 0;
-//    function showNext() {
-//        if (i >= schedule.length) return;
-//        const slot = schedule[i];
-//        const div = document.createElement('div');
-//        div.className = 'block';
-//        div.style.width = `${(slot.end - slot.start) * 25}px`;
-//        div.style.backgroundColor = colors[i % colors.length];
-//        div.innerText = slot.pid;
-//        container.appendChild(div);
-//        i++;
-//        setTimeout(showNext, 800); // 400ms delay between each process
-//    }
-//    showNext();
-//}
-
-//function animateProgressBars(schedule, processes) {
-//    // Map PID to burst time for easy lookup
-//    const burstMap = {};
-//    processes.forEach(p => burstMap[p.pid] = p.burstTime);
-
-//    // Track progress for each process
-//    const progress = {};
-//    processes.forEach(p => progress[p.pid] = 0);
-
-//    let i = 0;
-//    function step() {
-//        if (i >= schedule.length) return;
-//        const slot = schedule[i];
-//        // Remove queue suffix if present (for MLFQ)
-//        const pid = slot.pid.split('-')[0];
-//        progress[pid] += (slot.end - slot.start);
-
-//        // Update the progress bar
-//        const percent = Math.min(100, (progress[pid] / burstMap[pid]) * 100);
-//        const bar = document.getElementById(`progress-${pid}`);
-//        if (bar) bar.style.width = percent + "%";
-
-//        i++;
-//        setTimeout(step, 400); // Adjust speed as needed
-//    }
-//    step();
-//}
 
 function calculateMetrics(schedule, ps) {
     const grouped = {};
@@ -333,6 +280,55 @@ function renderMetrics(data) {
     container.appendChild(table);
 }
 
+function renderMetricsIncremental(metrics, finishedPIDs, showAverages) {
+    const container = document.getElementById('metrics');
+    let totalTurnaround = 0, totalResponse = 0, count = 0;
+
+    
+    let html = `
+    <table>
+    <tr>
+      <th>Process ID</th><th>Arrival Time</th><th>Burst Time</th>
+      <th>Completion Time</th><th>Turnaround Time</th><th>Response Time</th>
+    </tr>
+    `;
+
+   
+    metrics.forEach(proc => {
+        if (finishedPIDs.has(proc.pid)) {
+            html += `
+            <tr>
+                <td>${proc.pid}</td>
+                <td>${proc.arrival}</td>
+                <td>${proc.burst}</td>
+                <td>${proc.completion}</td>
+                <td>${proc.turnaround}</td>
+                <td>${proc.response}</td>
+            </tr>
+            `;
+            totalTurnaround += proc.turnaround;
+            totalResponse += proc.response;
+            count++;
+        }
+    });
+
+    
+    if (showAverages && count > 0) {
+        const avgTAT = (totalTurnaround / count).toFixed(2);
+        const avgRT = (totalResponse / count).toFixed(2);
+        html += `
+        <tr>
+            <td colspan="4"><strong>Averages</strong></td>
+            <td><strong>${avgTAT}</strong></td>
+            <td><strong>${avgRT}</strong></td>
+        </tr>
+        `;
+    }
+
+    html += '</table>';
+    container.innerHTML = html;
+}
+
 document.getElementById('process-form').addEventListener('reset', () => { });
 document.getElementById('dequeue-process').addEventListener('click', () => {
     if (processes.length > 0) {
@@ -346,19 +342,29 @@ function animateTimelineAndProgress(schedule, processes) {
     const container = document.getElementById('timeline');
     container.innerHTML = '';
 
-    // Map PID to burst time for easy lookup
+    
     const burstMap = {};
     processes.forEach(p => burstMap[p.pid] = p.burstTime);
 
-    // Track progress for each process
+    
     const progress = {};
     processes.forEach(p => progress[p.pid] = 0);
 
+    
+    const metrics = calculateMetrics(schedule, processes);
+
+    
+    const finishedPIDs = new Set();
+
     let i = 0;
     function step() {
-        if (i >= schedule.length) return;
+        if (i >= schedule.length) {
+            
+            renderMetricsIncremental(metrics, finishedPIDs, true);
+            return;
+        }
         const slot = schedule[i];
-        // Gantt chart block
+        
         const div = document.createElement('div');
         div.className = 'block';
         div.style.width = `${(slot.end - slot.start) * 25}px`;
@@ -366,15 +372,23 @@ function animateTimelineAndProgress(schedule, processes) {
         div.innerText = slot.pid;
         container.appendChild(div);
 
-        // Progress bar update
+        
         const pid = slot.pid.split('-')[0];
         progress[pid] += (slot.end - slot.start);
         const percent = Math.min(100, (progress[pid] / burstMap[pid]) * 100);
         const bar = document.getElementById(`progress-${pid}`);
         if (bar) bar.style.width = percent + "%";
 
+        
+        if (progress[pid] >= burstMap[pid] && !finishedPIDs.has(pid)) {
+            finishedPIDs.add(pid);
+            renderMetricsIncremental(metrics, finishedPIDs, false);
+        }
+
         i++;
-        setTimeout(step, 400); // Adjust speed as needed
+        setTimeout(step, 400); 
     }
+    
+    document.getElementById('metrics').innerHTML = '';
     step();
 }
