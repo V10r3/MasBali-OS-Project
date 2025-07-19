@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <title>CPU Scheduling Visualizer</title>
-    <link rel="stylesheet" href="newdecoration.css" />
+    <link rel="stylesheet" href="decoration.css" />
 </head>
 <body>
     <h1>CPU Scheduling Visualizer</h1>
@@ -57,6 +57,10 @@
             <label>Q1:</label><input type="number" id="a1" value="8" />
             <label>Q2:</label><input type="number" id="a2" value="12" />
             <label>Q3:</label><input type="text" id="a3" value="Infinity" />
+            <br />
+            <label>Boost</label>
+            <input type="number" id="mlfq-boost" value="0" min="0" style="width:60px;" />
+            <span>time units (0 = no boost)</span>
         </div>
 
         <label for="algorithm">Choose algorithm:</label>

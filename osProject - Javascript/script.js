@@ -90,6 +90,8 @@ document.getElementById('run').addEventListener('click', () => {
     const a3Raw = document.getElementById('a3').value.trim();
     const a3 = a3Raw.toLowerCase() === 'infinity' ? Infinity : parseInt(a3Raw);
 
+    const boost = parseInt(document.getElementById('mlfq-boost').value) || 0;
+
     const freshProcesses = deepCopyProcesses(processes);
 
     let result;
@@ -98,7 +100,7 @@ document.getElementById('run').addEventListener('click', () => {
         case 'sjf': result = sjfNonPreemptive(freshProcesses); break;
         case 'srtf': result = srtfPreemptive(freshProcesses); break;
         case 'rr': result = roundRobin(freshProcesses, rrQ); break;
-        case 'mlfq': result = mlfqScheduling(freshProcesses, [q0, q1, q2, q3], [a0, a1, a2, a3]); break;
+        case 'mlfq': result = mlfqScheduling(freshProcesses, [q0, q1, q2, q3], [a0, a1, a2, a3], boost); break;
     }
 
     
@@ -172,7 +174,7 @@ function roundRobin(ps, quantum) {
     return timeline;
 }
 
-function mlfqScheduling(ps, quantums, allotments) {
+function mlfqScheduling(ps, quantums, allotments, boostInterval = 0) {
     const all = ps.map(p => ({
         ...p,
         remaining: p.burstTime,
@@ -181,37 +183,51 @@ function mlfqScheduling(ps, quantums, allotments) {
     }));
     const timeline = [];
     let time = 0;
+    let lastBoost = 0;
 
     while (all.some(p => p.remaining > 0)) {
+        // Boost logic
+        if (boostInterval > 0 && time > 0 && (time - lastBoost) >= boostInterval) {
+            all.forEach(p => {
+                if (p.remaining > 0) {
+                    p.level = 0;
+                    p.used = 0;
+                }
+            });
+            lastBoost = time;
+        }
+
         const ready = all.filter(p => p.remaining > 0 && p.arrivalTime <= time);
-        // Sort by queue level: Q0 first, then Q1, etc.
-        ready.sort((a, b) => a.level - b.level);
         if (!ready.length) { time++; continue; }
 
-        for (const p of ready) {
-            const level = p.level;
-            const quantum = quantums[level];
-            const allotment = allotments[level];
-            const timeLeftInAllotment = allotment === Infinity ? p.remaining : allotment - p.used;
-            const exec = Math.min(quantum, p.remaining, timeLeftInAllotment);
+        
+        const minLevel = Math.min(...ready.map(p => p.level));
+        
+        const highestReady = ready.filter(p => p.level === minLevel);
 
-            timeline.push({ pid: `${p.pid}-Q${level}`, start: time, end: time + exec });
-            p.remaining -= exec;
-            p.used += exec;
-            time += exec;
+        const p = highestReady[0];
+        const level = p.level;
+        const quantum = quantums[level];
+        const allotment = allotments[level];
+        const timeLeftInAllotment = allotment === Infinity ? p.remaining : allotment - p.used;
+        const exec = Math.min(quantum, p.remaining, timeLeftInAllotment);
 
-            if (p.remaining > 0) {
-                if (p.used >= allotment) {
-                    if (level < quantums.length - 1) {
-                        p.level++;
-                        p.used = 0;
-                    } else {
-                        p.used = 0;
-                    }
+        timeline.push({ pid: `${p.pid}-Q${level}`, start: time, end: time + exec });
+        p.remaining -= exec;
+        p.used += exec;
+        time += exec;
+
+        if (p.remaining > 0) {
+            if (p.used >= allotment) {
+                if (level < quantums.length - 1) {
+                    p.level++;
+                    p.used = 0;
+                } else {
+                    p.used = 0;
                 }
-            } else {
-                p.used = 0;
             }
+        } else {
+            p.used = 0;
         }
     }
 
