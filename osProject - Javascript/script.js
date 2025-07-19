@@ -17,7 +17,8 @@ document.getElementById('generate-random').addEventListener('click', () => {
         const pid = (processes.length + 1).toString();
         const arrivalTime = randInt(0, maxJob);
         const burstTime = randInt(1, maxJob);
-        const queue = randInt(0, 3);
+        const queue = 0;
+
         processes.push({ pid, arrivalTime, burstTime, queue });
     }
     updateProcessList();
@@ -28,9 +29,14 @@ document.getElementById('process-form').addEventListener('submit', e => {
     const pid = document.getElementById('pid').value;
     const arrival = parseInt(document.getElementById('arrival').value);
     const burst = parseInt(document.getElementById('burst').value);
-    const queue = parseInt(document.getElementById('queue').value);
+    const queue = 0;
 
-    processes.push({ pid, arrivalTime: arrival, burstTime: burst, queue });
+    if (pid < 1 || arrival < 0 || burst < 1) {
+        alert('Please enter valid numbers pid must not be zero, arrival time must not be negative, burst time must not be negative.');
+        return;
+    }
+
+    processes.push({ pid, arrivalTime: arrival, burstTime: burst, queue});
     updateProcessList();
     document.getElementById('process-form').reset();
 });
@@ -179,15 +185,15 @@ function mlfqScheduling(ps, quantums, allotments, boostInterval = 0) {
         ...p,
         remaining: p.burstTime,
         level: p.queue ?? 0,
-        used: 0 
+        used: 0
     }));
     const timeline = [];
     let time = 0;
     let lastBoost = 0;
+    const queueIndices = Array(quantums.length).fill(0);
 
     while (all.some(p => p.remaining > 0)) {
-        // Boost logic
-        if (boostInterval > 0 && time > 0 && (time - lastBoost) >= boostInterval) {
+        if (boostInterval > 0 && (time - lastBoost) >= boostInterval) {
             all.forEach(p => {
                 if (p.remaining > 0) {
                     p.level = 0;
@@ -195,24 +201,32 @@ function mlfqScheduling(ps, quantums, allotments, boostInterval = 0) {
                 }
             });
             lastBoost = time;
+            queueIndices.fill(0);
         }
 
         const ready = all.filter(p => p.remaining > 0 && p.arrivalTime <= time);
-        if (!ready.length) { time++; continue; }
+        if (!ready.length) {
+            time++;
+            continue;
+        }
+        console.log(`Time ${time} – Ready queue:`);
+        ready.forEach(p => {
+            console.log(`  PID ${p.pid}: level ${p.level}, remaining ${p.remaining}, used ${p.used}`);
+        });
 
-        
         const minLevel = Math.min(...ready.map(p => p.level));
-        
         const highestReady = ready.filter(p => p.level === minLevel);
+        const rrIndex = queueIndices[minLevel] % highestReady.length;
+        const p = highestReady[rrIndex];
+        queueIndices[minLevel] = (queueIndices[minLevel] + 1) % highestReady.length;
 
-        const p = highestReady[0];
         const level = p.level;
         const quantum = quantums[level];
         const allotment = allotments[level];
         const timeLeftInAllotment = allotment === Infinity ? p.remaining : allotment - p.used;
         const exec = Math.min(quantum, p.remaining, timeLeftInAllotment);
 
-        timeline.push({ pid: `${p.pid}-Q${level}`, start: time, end: time + exec });
+        timeline.push({ pid: `${p.pid}-Q${p.level}`, start: time, end: time + exec });
         p.remaining -= exec;
         p.used += exec;
         time += exec;
@@ -220,11 +234,11 @@ function mlfqScheduling(ps, quantums, allotments, boostInterval = 0) {
         if (p.remaining > 0) {
             if (p.used >= allotment) {
                 if (level < quantums.length - 1) {
+                    console.log(`Demoting process ${p.pid} from Q${level} to Q${level + 1}`);
+
                     p.level++;
-                    p.used = 0;
-                } else {
-                    p.used = 0;
                 }
+                p.used = 0;
             }
         } else {
             p.used = 0;
@@ -233,6 +247,8 @@ function mlfqScheduling(ps, quantums, allotments, boostInterval = 0) {
 
     return timeline;
 }
+
+
 
 function calculateMetrics(schedule, ps) {
     const grouped = {};
