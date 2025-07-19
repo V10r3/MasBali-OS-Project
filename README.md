@@ -22,13 +22,12 @@ Multilevel Feedback Queue (MLFQ)
 -Mutilple queues with varied priority levels
 -the process moves between queues 
 
-Member roles/contrubutions
-Balista - both members have done all equal algorithms as we were having a hard time. 
-          HTML was improved based on Mascardo initial design
-Mascardo - Checking of accurate simulation and improvements of HTML Desgin and flow
+Member roles/contrubutions  
+Mascardo - Initial Code and UI  
+Balista - Cleanup, bugfix and UI improvement  
 
 known bugs:
-   <To Be Updated>
+   To Be Added
 
 Output Examples:
 
