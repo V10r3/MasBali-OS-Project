@@ -184,6 +184,8 @@ function mlfqScheduling(ps, quantums, allotments) {
 
     while (all.some(p => p.remaining > 0)) {
         const ready = all.filter(p => p.remaining > 0 && p.arrivalTime <= time);
+        // Sort by queue level: Q0 first, then Q1, etc.
+        ready.sort((a, b) => a.level - b.level);
         if (!ready.length) { time++; continue; }
 
         for (const p of ready) {
