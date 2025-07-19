@@ -32,23 +32,23 @@ known bugs:
 
 Output Examples:
 
-FIFO/FCFS
+FIFO/FCFS  
 <img width="612" height="603" alt="image" src="https://github.com/user-attachments/assets/2a5dd92b-9c8b-4f43-9d7f-1acfce509573" />
 
 
-SJF
+SJF  
 <img width="602" height="586" alt="image" src="https://github.com/user-attachments/assets/5ff5c938-3529-491e-b610-273631f014f3" />
 
 
-SRTF
+SRTF  
 <img width="598" height="597" alt="image" src="https://github.com/user-attachments/assets/ad7f4adb-1f95-4316-8687-e847fcea0803" />
 
 
-RR
+RR  
 <img width="863" height="812" alt="image" src="https://github.com/user-attachments/assets/4779ff89-5084-4dae-9961-3e8ec1b95023" />
 
 
-MLFQ
+MLFQ  
 <img width="607" height="723" alt="image" src="https://github.com/user-attachments/assets/96457b35-4ec8-4fc6-9173-b43a2c0a5fac" />
 
 
